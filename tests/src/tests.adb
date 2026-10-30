@@ -214,6 +214,11 @@ procedure Tests is
 
    Counter : Natural := 0;
    Presses : Natural := 0;
+
+   --  for the interp test cases
+   Draw_Count : Natural := 0;
+   Alpha_Ok : Boolean := True;
+
    procedure Update (Dt : Scalar);
    procedure Draw (Alpha : Scalar);
    procedure Update (Dt : Scalar) is
@@ -225,8 +230,10 @@ procedure Tests is
       end if;
    end Update;
    procedure Draw (Alpha : Scalar) is
-      pragma Unreferenced (Alpha);
+      --  pragma Unreferenced (Alpha);
    begin
+      Draw_Count := Draw_Count + 1;
+      Alpha_Ok := Alpha_Ok and then Alpha = 0.0;
       Clear_Background (Black);
    end Draw;
    package Test_Game is new Yarlib.Game_Loop (Update, Draw);
@@ -243,6 +250,8 @@ procedure Tests is
       --  press is seen by Update on the following frame.
       Counter := 0;
       Presses := 0;
+      Draw_Count := 0;
+      Alpha_Ok := True;
       Inject (Key_Event (Key_Space, Down => True));   --  frame 0
       Test_Game.Run (Default.all, Rec, Max_Frames => 3);
       Inject (Key_Event (Key_Space, Down => False));
@@ -251,16 +260,27 @@ procedure Tests is
       Replay.Stop (Rec, Default.all);
       Check ("8 frames, 8 steps", Counter = 8);
       Check ("two presses seen", Presses = 2);
+
+      --  interp test cases
+      Check ("8 frames, 8 draws", Draw_Count = 8);
+      Check ("headless alpha is zero", Alpha_Ok);
+
       Close_Window;
 
       Init_Window (32, 32, "replay");
       Counter := 0;
       Presses := 0;
+      Draw_Count := 0;
+      Alpha_Ok := True;
       Replay.Start_Replay (Rec, Default.all, "test.rec", Ok);
       Check ("start replay", Ok);
       Test_Game.Run (Default.all, Rec, Max_Frames => 8);
       Check ("replay reproduces steps", Counter = 8);
       Check ("replay reproduces presses", Presses = 2);
+
+      --  interp test cases:
+      Check ("replay reproduces draws", Draw_Count = 8);
+      Check ("replay reproduces zero alpha", Alpha_Ok);
       Replay.Stop (Rec, Default.all);
       Close_Window;
    end Test_Loop_And_Replay;

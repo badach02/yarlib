@@ -6,7 +6,7 @@ with Yarlib.Textures;  use Yarlib.Textures;
 package body Arena_Game is
 
    type Block is record
-      Pos, Vel : Vector2;
+      Pos, Prev_Pos, Vel : Vector2;
       Size     : Scalar;
       Tint     : Color;
    end record;
@@ -15,6 +15,7 @@ package body Arena_Game is
    Blocks : array (1 .. Max_Blocks) of Block;
    N      : Natural := 0;
 
+   Prev_Ship : Rectangle; -- to store previous ship location for interp
    Speed  : constant Scalar := 260.0;
    Sprite : Texture;
    Angle  : Degrees := 0.0;
@@ -32,17 +33,21 @@ package body Arena_Game is
            (Pos  => (X, Y),
             Vel  => (Scalar (40 + 15 * (N mod 7)) * (if N mod 2 = 0 then 1.0 else -1.0),
                      Scalar (30 + 11 * (N mod 5)) * (if N mod 3 = 0 then 1.0 else -1.0)),
+            --  Initialize both positions in case drawing happens before the first update.
+            Prev_Pos => (X, Y),
             Size => Size, Tint => Tint);
       end if;
    end Add_Block;
 
    ----------
-   -- Init --
+   --  Init --
    ----------
 
    procedure Init is
    begin
       Ship := (Scalar (W) / 2.0 - 16.0, Scalar (H) / 2.0 - 16.0, 32.0, 32.0);
+      --  Set previous location of ship on creation
+      Prev_Ship := Ship;
       Sprite := Checkerboard (32, 32, 8, Orange, Purple);
       N := 0;
       for I in 1 .. 12 loop
@@ -56,11 +61,14 @@ package body Arena_Game is
    end Init;
 
    ------------
-   -- Update --
+   --  Update --
    ------------
 
    procedure Update (Dt : Scalar) is
    begin
+      --  Before we change the ship location, save previous location to interp it
+      Prev_Ship := Ship;
+
       if Is_Key_Down (Key_Left) or Is_Key_Down (Key_A) then
          Ship.X := Ship.X - Speed * Dt;
       end if;
@@ -80,6 +88,8 @@ package body Arena_Game is
          declare
             B : Block renames Blocks (I);
          begin
+            --  store the previous position to use for interpolation.
+            B.Prev_Pos := B.Pos;
             B.Pos := B.Pos + B.Vel * Dt;
             if B.Pos.X < 0.0 or else B.Pos.X + B.Size > Scalar (W) then
                B.Vel.X := -B.Vel.X;
@@ -93,26 +103,40 @@ package body Arena_Game is
    end Update;
 
    ----------
-   -- Draw --
+   --  Draw --
    ----------
 
    procedure Draw (Alpha : Scalar) is
-      pragma Unreferenced (Alpha);   --  interpolate Pos with Vel * Alpha * Dt: milestone 4
+      --  Create a new ship to copy its hidth and height for interp.
+      Draw_Ship : Rectangle := Ship;
+      --  pragma Unreferenced (Alpha);   --  interpolate Pos with Vel * Alpha * Dt: milestone 4
    begin
+      --  calculate X & Y interp for ship
+      Draw_Ship.X := Prev_Ship.X + (Ship.X - Prev_Ship.X) * Alpha;
+      Draw_Ship.Y := Prev_Ship.Y + (Ship.Y - Prev_Ship.Y) * Alpha;
+
       Clear_Background (Dark_Gray);
       Draw_Rectangle_Lines (8, 8, W - 16, H - 16, Light_Gray);
       for I in 1 .. N loop
-         Draw_Rectangle_Rec ((Blocks (I).Pos.X, Blocks (I).Pos.Y, Blocks (I).Size, Blocks (I).Size),
-                             Blocks (I).Tint);
+         declare
+            B : Block renames Blocks (I);
+            --  Compute interpolation for prev->new position.
+            --  Alpha is a fractional measurement of how far the
+            --  blend has traveled. Example 100->102:
+            --  An alpha of 0.5 means we are at 101.
+            Draw_Pos : constant Vector2 := B.Prev_Pos + (B.Pos - B.Prev_Pos) * Alpha;
+         begin
+            Draw_Rectangle_Rec ((Draw_Pos.X, Draw_Pos.Y, B.Size, B.Size), B.Tint);
+         end;
       end loop;
       Draw_Texture_Pro
         (Sprite, (0.0, 0.0, 32.0, 32.0), (100.0, 100.0, 64.0, 64.0), (32.0, 32.0), Angle);
-      Draw_Rectangle_Rec (Ship, Ship_Color);
-      Draw_Line_Ex ((Ship.X + 16.0, Ship.Y + 16.0), Get_Mouse_Position, 2.0, White);
+      Draw_Rectangle_Rec (Draw_Ship, Ship_Color);
+      Draw_Line_Ex ((Draw_Ship.X + 16.0, Draw_Ship.Y + 16.0), Get_Mouse_Position, 2.0, White);
    end Draw;
 
    -------------
-   -- Console --
+   --  Console --
    -------------
 
    --  Three numbers out of Args, or Ok = False.
@@ -180,6 +204,9 @@ package body Arena_Game is
       else
          Ship.X := X;
          Ship.Y := Y;
+
+         --  update ship pos for interp on teleport
+         Prev_Ship := Ship;
          Console.Set (R, True, "ok");
       end if;
    end Cmd_Ship;
