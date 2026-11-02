@@ -16,6 +16,7 @@ with Yarlib;           use Yarlib;
 with Yarlib.Batch;     use Yarlib.Batch;
 with Yarlib.Console;
 with Yarlib.Core;      use Yarlib.Core;
+with Yarlib.Font;
 with Yarlib.Game_Loop;
 with Yarlib.Renderer;
 with Yarlib.Input;
@@ -41,6 +42,7 @@ procedure Tests is
    procedure Test_Camera;
    procedure Test_Loop_And_Replay;
    procedure Test_Console;
+   procedure Test_Atlas;
 
    procedure Check (Name : String; Cond : Boolean; Needs : Natural := 0) is
    begin
@@ -306,6 +308,22 @@ procedure Tests is
       Check ("re-register replaces", Console.Count = 1);
    end Test_Console;
 
+   ---------------------------------------------------------------------
+
+   procedure Test_Atlas is
+      use Bedrock.Buffers;
+      Atlas : constant Bitmap := Font.Build_Atlas;
+      A     : constant Rectangle := Font.Source ('A');
+   begin
+      Check ("atlas is 128x64", Width (Atlas) = 128 and Height (Atlas) = 64);
+      Check ("source of A", A = (8.0, 16.0, 8.0, 8.0));
+      Check ("B sits one glyph right of A",
+             Font.Source ('B').X = A.X + Scalar (Font.Glyph_Width));
+      Check ("source of ~", Font.Source ('~') = (112.0, 40.0, 8.0, 8.0));
+      Check ("A top-left pixel is clear", Get (Atlas, 8, 16) = Transparent);
+      Check ("A is not mirrored", Get (Atlas, 10, 16) = White);
+   end Test_Atlas;
+
 begin
    Test_Raster;
    Test_Batch;
@@ -314,6 +332,7 @@ begin
    Test_Camera;
    Test_Loop_And_Replay;
    Test_Console;
+   Test_Atlas;
    New_Line;
    if Todos > 0 then
       Put_Line (Todos'Image & " TODO (waiting on milestones above" & Milestone'Image & ")");
