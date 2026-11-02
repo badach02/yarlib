@@ -64,3 +64,6 @@ jobs:
         run: |
           alr -n with gnatprove
           alr -n exec -- gnatprove -P yarlib.gpr --mode=flow --checks-as-errors=on
+      - name: SPARK Batch proof
+        run: |
+          alr -n exec -- gnatprove -P yarlib.gpr --mode=all -u yarlib-batch.adb --report=all --checks-as-errors=on

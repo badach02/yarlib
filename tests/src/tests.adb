@@ -27,7 +27,7 @@ with Yarlib.Textures;  use Yarlib.Textures;
 
 procedure Tests is
 
-   Milestone : constant Natural := 0;
+   Milestone : constant Natural := 1;
    --  0: seed as shipped. 1: batcher written.
 
    Failures : Natural := 0;
