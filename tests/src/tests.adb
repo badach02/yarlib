@@ -24,6 +24,7 @@ with Yarlib.Replay;
 with Test_Support;
 with Yarlib.Shapes;    use Yarlib.Shapes;
 with Yarlib.Textures;  use Yarlib.Textures;
+with Test_QOI_Decoder;
 
 procedure Tests is
 
