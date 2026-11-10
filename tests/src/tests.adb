@@ -16,6 +16,7 @@ with Yarlib;           use Yarlib;
 with Yarlib.Batch;     use Yarlib.Batch;
 with Yarlib.Console;
 with Yarlib.Core;      use Yarlib.Core;
+with Yarlib.Font;
 with Yarlib.Game_Loop;
 with Yarlib.Renderer;
 with Yarlib.Input;
@@ -24,6 +25,7 @@ with Yarlib.Replay;
 with Test_Support;
 with Yarlib.Shapes;    use Yarlib.Shapes;
 with Yarlib.Textures;  use Yarlib.Textures;
+with Yarlib.Text;
 
 procedure Tests is
 
@@ -41,6 +43,8 @@ procedure Tests is
    procedure Test_Camera;
    procedure Test_Loop_And_Replay;
    procedure Test_Console;
+   procedure Test_Atlas;
+   procedure Test_Text;
 
    procedure Check (Name : String; Cond : Boolean; Needs : Natural := 0) is
    begin
@@ -306,6 +310,54 @@ procedure Tests is
       Check ("re-register replaces", Console.Count = 1);
    end Test_Console;
 
+   ---------------------------------------------------------------------
+
+   procedure Test_Atlas is
+      use Bedrock.Buffers;
+      Atlas : constant Bitmap := Font.Build_Atlas;
+      A     : constant Rectangle := Font.Source ('A');
+   begin
+      Check ("atlas is 128x64", Width (Atlas) = 128 and Height (Atlas) = 64);
+      Check ("source of A", A = (8.0, 16.0, 8.0, 8.0));
+      Check ("B sits one glyph right of A",
+             Font.Source ('B').X = A.X + Scalar (Font.Glyph_Width));
+      Check ("source of ~", Font.Source ('~') = (112.0, 40.0, 8.0, 8.0));
+      Check ("A top-left pixel is clear", Get (Atlas, 8, 16) = Transparent);
+      Check ("A is not mirrored", Get (Atlas, 10, 16) = White);
+   end Test_Atlas;
+
+   ---------------------------------------------------------------------
+
+   procedure Test_Text is
+   begin
+      Check ("measure abc at 16", Text.Measure_Text ("abc", 16) = 48);
+      Check ("measure abc at 12", Text.Measure_Text ("abc", 12) = 36);
+      Check ("measure empty string", Text.Measure_Text ("", 16) = 0);
+
+      Init_Window (64, 32, "text");
+      Begin_Drawing;
+      Clear_Background (Black);
+      Text.Draw_Text ("AB", 0, 0, 8, Red);
+      End_Drawing;
+      --  Row 0 of 'A' is 16#0C#: pixels 2 and 3 set, 0 clear
+      Check ("A row 0: pixel 2 set", Same (Get_Screen_Pixel (2, 0), Red));
+      Check ("A row 0: pixel 0 clear", Same (Get_Screen_Pixel (0, 0), Black));
+      --  Row 2 of 'A' is 16#33#: pixel 5 is the right edge, 6 is clear
+      Check ("A right edge set", Same (Get_Screen_Pixel (5, 2), Red));
+      Check ("A right edge does not bleed", Same (Get_Screen_Pixel (6, 2), Black));
+      --  Row 0 of 'B' is 16#3F#: B starts one glyph (8 px) right of A
+      Check ("B drawn one glyph right", Same (Get_Screen_Pixel (8, 0), Red));
+      Check ("gap between A and B", Same (Get_Screen_Pixel (7, 0), Black));
+
+      Begin_Drawing;
+      Clear_Background (Black);
+      Text.Draw_Text ("A", 0, 0, 16, Red);
+      End_Drawing;
+      --  Size 16 doubles every pixel: row 2, pixel 5 covers (10 .. 11, 4 .. 5)
+      Check ("A at 16: right edge set", Same (Get_Screen_Pixel (11, 5), Red));
+      Check ("A at 16: past the edge clear", Same (Get_Screen_Pixel (12, 5), Black));
+      Close_Window;
+   end Test_Text;
 begin
    Test_Raster;
    Test_Batch;
@@ -314,6 +366,8 @@ begin
    Test_Camera;
    Test_Loop_And_Replay;
    Test_Console;
+   Test_Atlas;
+   Test_Text;
    New_Line;
    if Todos > 0 then
       Put_Line (Todos'Image & " TODO (waiting on milestones above" & Milestone'Image & ")");
