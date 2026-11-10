@@ -121,5 +121,6 @@ is
    function Build_Atlas return Bitmap;
 
    --  The rectangle of C in the atlas
-   function Source (C : Character) return Rectangle;
+   function Source (C : Character) return Rectangle with
+        Pre => C in Bits'Range;
 end Yarlib.Font;

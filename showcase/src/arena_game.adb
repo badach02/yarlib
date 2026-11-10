@@ -2,7 +2,7 @@ with Bedrock.Input;    use Bedrock.Input;
 with Yarlib.Core;      use Yarlib.Core;
 with Yarlib.Shapes;    use Yarlib.Shapes;
 with Yarlib.Textures;  use Yarlib.Textures;
-
+with Yarlib.Text; use Yarlib.Text;
 package body Arena_Game is
 
    type Block is record
@@ -133,6 +133,9 @@ package body Arena_Game is
         (Sprite, (0.0, 0.0, 32.0, 32.0), (100.0, 100.0, 64.0, 64.0), (32.0, 32.0), Angle);
       Draw_Rectangle_Rec (Draw_Ship, Ship_Color);
       Draw_Line_Ex ((Draw_Ship.X + 16.0, Draw_Ship.Y + 16.0), Get_Mouse_Position, 2.0, White);
+      --  Print fps and block count
+      Draw_Text ("FPS:" & Get_FPS'Image, 16, 16, 16, White);
+      Draw_Text ("Blocks:" & Block_Count'Image, 16, 36, 16, White);
    end Draw;
 
    -------------
