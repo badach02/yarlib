@@ -2,6 +2,9 @@ with Ada.Numerics.Elementary_Functions;
 with Bedrock.Buffers;
 with Yarlib.Batch;
 with Yarlib.Renderer;
+with Yarlib.QOI;
+with Ada.Directories;
+with Ada.Streams.Stream_IO;
 
 package body Yarlib.Textures is
 
@@ -14,6 +17,52 @@ package body Yarlib.Textures is
          raise Program_Error with "yarlib: texture table full";
       end if;
       return T;
+   end Load_Texture;
+
+   function Load_Texture (File_Path : String) return Texture is
+      use Yarlib.QOI;
+      --  places the qoi file into a byte array. 
+      function Read_File return Byte_Array is
+         use Ada.Streams.Stream_IO;
+         F : File_Type;
+      begin
+         Open (F, In_File, File_Path);
+         declare
+            Data : Byte_Array (1 .. Natural (Size (F)));
+         begin
+            Byte_Array'Read (Stream (F), Data);
+            Close (F);
+            return Data;
+         end;
+      exception
+         when Name_Error =>
+            raise Program_Error with "yarlib: no such file " & File_Path;
+      end Read_File;
+      --now declare the variables to hold the data and the width and height of the image
+      Data          : constant Byte_Array := Read_File;
+      Width, Height : Natural := 0;
+      Ok            : Boolean := False;
+   begin
+      --read header and get the width and height of the image
+      if Data'Length >= Header_Size then
+         Read_Header (Data, Width, Height, Ok);
+      end if;
+      if not Ok then
+         raise Program_Error with "yarlib: bad QOI header in " & File_Path;
+      end if;
+
+      -- make a bitmap for the image
+      declare
+         Img : Bitmap := Bedrock.Buffers.Make (Width, Height);
+      begin
+         Decode (Data, Img, Ok);
+         if not Ok then
+            raise Program_Error with "yarlib: bad QOI data in " & File_Path;
+         end if;
+
+         --  3. Upload it to the GPU.
+         return Load_Texture (Img);
+      end;
    end Load_Texture;
 
    function Checkerboard

@@ -12,6 +12,10 @@ package Yarlib.Textures is
    function Load_Texture (Img : Bitmap) return Texture;
    --  Raises Program_Error when the texture table is full.
 
+   function Load_Texture (File_path : String) return Texture;
+   --  Raises Program_Error when the texture table is full.
+   --  File is a path to an image file (BMP, PNG, TGA, JPG, GIF, PSD, HDR, PIC or PNM).
+
    function Checkerboard
      (Width, Height, Cell : Positive; A, B : Color) return Texture;
 
