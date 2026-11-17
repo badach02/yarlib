@@ -137,6 +137,9 @@ private package Yarlib.Platform.SDL is
    Scan_Backspace : constant := 42;
    Scan_Tab       : constant := 43;
    Scan_Space     : constant := 44;
+   Scan_Minus     : constant := 45;
+   Scan_Grave     : constant := 53;   --  the ` key, opens the console
+   Scan_Period    : constant := 55;
    Scan_F1        : constant := 58;   --  .. F12 = 69
    Scan_Right     : constant := 79;
    Scan_Left      : constant := 80;

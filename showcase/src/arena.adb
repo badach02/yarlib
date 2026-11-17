@@ -4,7 +4,8 @@
 --     frame. Yarlib.Game_Loop runs it. Yarlib.Replay records it.
 --     Yarlib.Console drives it.
 --
---     arena                        play: WASD or arrows, Escape quits
+--     arena                        play: WASD or arrows, Escape quits,
+--                                  ` (grave) opens the console
 --     arena --record session.rec   play and record every input
 --     arena --replay session.rec   replay it, same result, no hands
 --     arena --frames 120           120 frames, then write shot.png and

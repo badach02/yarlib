@@ -4,6 +4,7 @@ with Yarlib.Shapes;    use Yarlib.Shapes;
 with Yarlib.Textures;  use Yarlib.Textures;
 with Yarlib.Collision;
 with Yarlib.Text; use Yarlib.Text;
+with Yarlib.Console_View;
 package body Arena_Game is
 
    type Block is record
@@ -67,15 +68,19 @@ package body Arena_Game is
    ------------
 
    procedure Update (Dt : Scalar) is
+      Steering_Enabled : constant Boolean := not Console_View.Is_Open;
    begin
       --  Before we change the ship location, save previous location to interp it
       Prev_Ship := Ship;
 
-      if Is_Key_Down (Key_Left) or Is_Key_Down (Key_A) then
-         Ship.X := Ship.X - Speed * Dt;
-      end if;
-      if Is_Key_Down (Key_Right) or Is_Key_Down (Key_D) then
-         Ship.X := Ship.X + Speed * Dt;
+      --  Reserve movement keys for typing while the console is open.
+      if Steering_Enabled then
+         if Is_Key_Down (Key_Left) or Is_Key_Down (Key_A) then
+            Ship.X := Ship.X - Speed * Dt;
+         end if;
+         if Is_Key_Down (Key_Right) or Is_Key_Down (Key_D) then
+            Ship.X := Ship.X + Speed * Dt;
+         end if;
       end if;
       Ship.X := Scalar'Max (0.0, Scalar'Min (Scalar (W) - Ship.Width, Ship.X));
 
@@ -93,11 +98,13 @@ package body Arena_Game is
          end if;
       end if;
 
-      if Is_Key_Down (Key_Up) or Is_Key_Down (Key_W) then
-         Ship.Y := Ship.Y - Speed * Dt;
-      end if;
-      if Is_Key_Down (Key_Down) or Is_Key_Down (Key_S) then
-         Ship.Y := Ship.Y + Speed * Dt;
+      if Steering_Enabled then
+         if Is_Key_Down (Key_Up) or Is_Key_Down (Key_W) then
+            Ship.Y := Ship.Y - Speed * Dt;
+         end if;
+         if Is_Key_Down (Key_Down) or Is_Key_Down (Key_S) then
+            Ship.Y := Ship.Y + Speed * Dt;
+         end if;
       end if;
       Ship.Y := Scalar'Max (0.0, Scalar'Min (Scalar (H) - Ship.Height, Ship.Y));
       if Ship.X < Wall.X + Wall.Width and then Ship.X + Ship.Width > Wall.X then
@@ -171,6 +178,11 @@ package body Arena_Game is
       --  Print fps and block count
       Draw_Text ("FPS:" & Get_FPS'Image, 16, 16, 16, White);
       Draw_Text ("Blocks:" & Block_Count'Image, 16, 36, 16, White);
+
+      --  The console is drawn last so it sits on top. Its keys are read
+      --  here, not in Update: Update runs 0 to 5 times a frame, Draw once.
+      Console_View.Handle_Input;
+      Console_View.Draw;
    end Draw;
 
    -------------
