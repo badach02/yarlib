@@ -46,7 +46,7 @@ procedure Arena is
       use GNAT.OS_Lib;
       Executable : String_Access :=
         (if Exists (Command_Name) then new String'(Full_Name (Command_Name))
-         else Locate_Exec_On_Path (Command_Name, True));
+         else Locate_Exec_On_Path (Command_Name));
    begin
       if Executable = null then
          raise Program_Error with "arena: cannot locate executable " & Command_Name;
