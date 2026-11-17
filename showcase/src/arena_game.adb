@@ -3,6 +3,7 @@ with Yarlib.Core;      use Yarlib.Core;
 with Yarlib.Shapes;    use Yarlib.Shapes;
 with Yarlib.Textures;  use Yarlib.Textures;
 with Yarlib.Text; use Yarlib.Text;
+with Yarlib.Console_View;
 package body Arena_Game is
 
    type Block is record
@@ -69,17 +70,20 @@ package body Arena_Game is
       --  Before we change the ship location, save previous location to interp it
       Prev_Ship := Ship;
 
-      if Is_Key_Down (Key_Left) or Is_Key_Down (Key_A) then
-         Ship.X := Ship.X - Speed * Dt;
-      end if;
-      if Is_Key_Down (Key_Right) or Is_Key_Down (Key_D) then
-         Ship.X := Ship.X + Speed * Dt;
-      end if;
-      if Is_Key_Down (Key_Up) or Is_Key_Down (Key_W) then
-         Ship.Y := Ship.Y - Speed * Dt;
-      end if;
-      if Is_Key_Down (Key_Down) or Is_Key_Down (Key_S) then
-         Ship.Y := Ship.Y + Speed * Dt;
+      --  While the console is open the keys are typing, not steering
+      if not Console_View.Is_Open then
+         if Is_Key_Down (Key_Left) or Is_Key_Down (Key_A) then
+            Ship.X := Ship.X - Speed * Dt;
+         end if;
+         if Is_Key_Down (Key_Right) or Is_Key_Down (Key_D) then
+            Ship.X := Ship.X + Speed * Dt;
+         end if;
+         if Is_Key_Down (Key_Up) or Is_Key_Down (Key_W) then
+            Ship.Y := Ship.Y - Speed * Dt;
+         end if;
+         if Is_Key_Down (Key_Down) or Is_Key_Down (Key_S) then
+            Ship.Y := Ship.Y + Speed * Dt;
+         end if;
       end if;
       Ship.X := Scalar'Max (0.0, Scalar'Min (Scalar (W) - Ship.Width, Ship.X));
       Ship.Y := Scalar'Max (0.0, Scalar'Min (Scalar (H) - Ship.Height, Ship.Y));
@@ -136,6 +140,11 @@ package body Arena_Game is
       --  Print fps and block count
       Draw_Text ("FPS:" & Get_FPS'Image, 16, 16, 16, White);
       Draw_Text ("Blocks:" & Block_Count'Image, 16, 36, 16, White);
+
+      --  The console is drawn last so it sits on top. Its keys are read
+      --  here, not in Update: Update runs 0 to 5 times a frame, Draw once.
+      Console_View.Handle_Input;
+      Console_View.Draw;
    end Draw;
 
    -------------

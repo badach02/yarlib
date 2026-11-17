@@ -106,6 +106,9 @@ package body Yarlib.Platform is
          when Scan_Backspace => return Key_Backspace;
          when Scan_Tab       => return Key_Tab;
          when Scan_Space     => return Key_Space;
+         when Scan_Minus     => return Key_Minus;
+         when Scan_Grave     => return Key_Grave;
+         when Scan_Period    => return Key_Period;
          when Scan_Right     => return Key_Right;
          when Scan_Left      => return Key_Left;
          when Scan_Down      => return Key_Down;
