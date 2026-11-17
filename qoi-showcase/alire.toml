@@ -1,0 +1,20 @@
+name = "yarlib_showcase"
+description = "yarlib showcase: a small arena game on SDL3 + OpenGL"
+executables = ["arena"]
+version = "0.1.0-dev"
+authors = ["Olivier Henley"]
+maintainers = ["Olivier Henley <henley@adacore.com>"]
+maintainers-logins = ["ohenley"]
+licenses = "Apache-2.0"
+
+project-files = ["showcase.gpr"]
+
+[[depends-on]]
+yarlib = "*"
+
+[[pins]]
+yarlib = { path = ".." }
+
+[gpr-set-externals]
+YARLIB_PLATFORM = "sdl3"
+YARLIB_RENDERER = "opengl"
