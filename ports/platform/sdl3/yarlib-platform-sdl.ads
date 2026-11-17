@@ -37,6 +37,8 @@ private package Yarlib.Platform.SDL is
    procedure SDL_DestroyWindow (W : System.Address)
      with Import, Convention => C, External_Name => "SDL_DestroyWindow";
 
+   GL_Alpha_Size            : constant C.int := 3;
+   GL_Depth_Size            : constant C.int := 6;
    GL_Context_Major_Version : constant C.int := 17;
    GL_Context_Minor_Version : constant C.int := 18;
 
