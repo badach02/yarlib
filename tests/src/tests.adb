@@ -10,11 +10,13 @@ with Bedrock;         use Bedrock;
 with Bedrock.Buffers;
 with Bedrock.Colors;  use Bedrock.Colors;
 with Ada.Command_Line;
+with Ada.Numerics.Discrete_Random;
 with Ada.Text_IO;      use Ada.Text_IO;
 with Bedrock.Input;    use Bedrock.Input;
 with Yarlib;           use Yarlib;
 with Yarlib.Batch;     use Yarlib.Batch;
 with Yarlib.Collision; use Yarlib.Collision;
+with Yarlib.Collision.Grid;
 with Yarlib.Console;
 with Yarlib.Core;      use Yarlib.Core;
 with Yarlib.Font;
@@ -40,6 +42,7 @@ procedure Tests is
    procedure Test_Raster;
    procedure Test_Batch;
    procedure Test_Collision;
+   procedure Test_Collision_Grid;
    procedure Test_Input;
    procedure Test_Core;
    procedure Test_Camera;
@@ -96,6 +99,111 @@ procedure Tests is
              not Check_Collision_Circle_Rec ((12.0, 12.0), 2.0, A));
       Check ("circle empty rectangle", not Check_Collision_Circle_Rec ((5.0, 3.0), 2.0, Empty));
    end Test_Collision;
+
+   procedure Test_Collision_Grid is
+      package Small is new Yarlib.Collision.Grid
+        (Origin_X => -16.0, Origin_Y => -16.0, Columns => 4, Rows => 4,
+         Cell_Size => 8, Max_Per_Cell => 2, Max_Id => 4);
+      Fixture : Small.Grid;
+      Found   : Small.Id_List (3 .. 6);
+      Short   : Small.Id_List (1 .. 1);
+      Empty   : Small.Id_List (1 .. 0);
+      Count   : Natural;
+      Ok      : Boolean;
+      West    : constant Rectangle := (-16.0, -16.0, 4.0, 4.0);
+      East    : constant Rectangle := (-8.0, -16.0, 4.0, 4.0);
+      Span    : constant Rectangle := (-12.0, -16.0, 8.0, 4.0);
+
+      N : constant := 1_000;
+      package Random_Grid is new Yarlib.Collision.Grid
+        (Origin_X => -256.0, Origin_Y => -256.0, Columns => 32, Rows => 32,
+         Cell_Size => 16, Max_Per_Cell => 64, Max_Id => N);
+      G          : Random_Grid.Grid;
+      Rects      : array (1 .. N) of Rectangle;
+      Candidates : Random_Grid.Id_List (1 .. N);
+      subtype Random_Value is Integer range 0 .. 479;
+      package Random is new Ada.Numerics.Discrete_Random (Random_Value);
+      Gen : Random.Generator;
+      All_Inserted  : Boolean := True;
+      All_Unique    : Boolean := True;
+      All_Covered   : Boolean := True;
+      Overlap_Count : Natural := 0;
+   begin
+      Small.Clear (Fixture);
+      Small.Insert (Fixture, 1, Span, Ok);
+      Check ("grid inserts rectangles crossing a negative cell boundary", Ok);
+      Small.Query (Fixture, West, Found, Count, Ok);
+      Check ("grid finds the ID west of the cell boundary",
+             Ok and then Count = 1 and then Found (3) = 1);
+      Small.Query (Fixture, East, Found, Count, Ok);
+      Check ("grid finds the ID on the cell boundary",
+             Ok and then Count = 1 and then Found (3) = 1);
+      Small.Query (Fixture, Span, Found, Count, Ok);
+      Check ("grid deduplicates multi-cell IDs", Ok and then Count = 1);
+      Small.Insert (Fixture, 2, East, Ok);
+      Check ("grid accepts the last entry in a cell", Ok);
+      Small.Insert (Fixture, 3, Span, Ok);
+      Check ("grid reports a full cell", not Ok);
+      Small.Query (Fixture, West, Found, Count, Ok);
+      Check ("grid rejects a full insert without writing earlier cells",
+             Ok and then Count = 1 and then Found (3) = 1);
+      Small.Query (Fixture, Span, Short, Count, Ok);
+      Check ("grid reports a full result buffer",
+             not Ok and then Count = 1 and then Short (1) = 1);
+      Small.Query (Fixture, Span, Empty, Count, Ok);
+      Check ("grid reports a zero-length result buffer", not Ok and then Count = 0);
+      Small.Insert (Fixture, 3, (-17.0, -16.0, 2.0, 2.0), Ok);
+      Check ("grid rejects a rectangle partly outside the origin", not Ok);
+      Small.Insert (Fixture, 3, (14.0, 14.0, 2.0, 2.0), Ok);
+      Check ("grid accepts a rectangle ending at the far edge", Ok);
+      Small.Query (Fixture, (15.0, 15.0, 1.0, 1.0), Found, Count, Ok);
+      Check ("grid finds the ID on the far edge",
+             Ok and then Count = 1 and then Found (3) = 3);
+      Small.Query (Fixture, (15.0, 15.0, 2.0, 1.0), Found, Count, Ok);
+      Check ("grid rejects a query beyond the far edge", not Ok and then Count = 0);
+      Small.Insert (Fixture, 5, West, Ok);
+      Check ("grid rejects an ID above capacity", not Ok);
+      Small.Clear (Fixture);
+      Small.Insert (Fixture, 1, (-12.0, -12.0, 0.0, 4.0), Ok);
+      Check ("grid accepts a zero-width rectangle as empty", Ok);
+      Small.Query (Fixture, Span, Found, Count, Ok);
+      Check ("grid clear and empty inserts leave no candidates", Ok and then Count = 0);
+
+      Random.Reset (Gen, Initiator => 12);
+      Random_Grid.Clear (G);
+      for I in Rects'Range loop
+         Rects (I).X := Scalar (Random.Random (Gen) - 256);
+         Rects (I).Y := Scalar (Random.Random (Gen) - 256);
+         Rects (I).Width := Scalar (1 + Random.Random (Gen) mod 32);
+         Rects (I).Height := Scalar (1 + Random.Random (Gen) mod 32);
+         Random_Grid.Insert (G, I, Rects (I), Ok);
+         All_Inserted := All_Inserted and Ok;
+      end loop;
+      for I in Rects'Range loop
+         declare
+            Seen : array (Rects'Range) of Boolean := [others => False];
+         begin
+            Random_Grid.Query (G, Rects (I), Candidates, Count, Ok);
+            All_Covered := All_Covered and Ok;
+            for J in 1 .. Count loop
+               if Candidates (J) in Seen'Range and then not Seen (Candidates (J)) then
+                  Seen (Candidates (J)) := True;
+               else
+                  All_Unique := False;
+               end if;
+            end loop;
+            for J in Rects'Range loop
+               if I /= J and then Check_Collision_Recs (Rects (I), Rects (J)) then
+                  Overlap_Count := Overlap_Count + 1;
+                  All_Covered := All_Covered and Seen (J);
+               end if;
+            end loop;
+         end;
+      end loop;
+      Check ("grid inserts all 1000 seeded rectangles", All_Inserted);
+      Check ("grid seeded candidates are unique and valid", All_Unique);
+      Check ("grid misses no seeded brute-force overlaps", All_Covered and Overlap_Count > 0);
+   end Test_Collision_Grid;
 
    ---------------------------------------------------------------------
 
@@ -396,6 +504,7 @@ procedure Tests is
    end Test_Text;
 begin
    Test_Collision;
+   Test_Collision_Grid;
    Test_Raster;
    Test_Batch;
    Test_Input;

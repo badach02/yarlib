@@ -13,6 +13,7 @@ package Arena_Game is
    Ship : Rectangle;
 
    function Block_Count return Natural;
+   function Stress_Active return Boolean;
 
    procedure Init (Asset_Directory : String := "assets/space");
    procedure Update (Dt : Scalar);
@@ -23,6 +24,8 @@ package Arena_Game is
    --    clear              remove all blocks
    --    ship X Y           move the ship
    --    list               blocks and ship
+   --    stress 2000        replace the blocks with a grid collision workload
+   --    stress stats       report measured frame times
    procedure Cmd_Spawn (Args : String; R : out Console.Response);
    procedure Cmd_Clear (Args : String; R : out Console.Response);
    procedure Cmd_Ship (Args : String; R : out Console.Response);

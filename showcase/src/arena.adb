@@ -11,6 +11,8 @@
 --     arena --frames 120           120 frames, then write shot.png and
 --                                  exit 0 if the ship's pixel is visible
 --     arena -c "spawn 100 100 20"  run a console line first (repeatable)
+--     arena -c "stress 2000" --frames 150
+--                                  run collision stress and print frame timings
 --
 --  Until milestone 1 (the batcher) the window shows the clear colour
 --  and nothing else, --frames exits 1, and the library reports the
@@ -102,6 +104,15 @@ begin
 
    Game.Run (Default.all, Session, Max_Frames => Frames);
    Replay.Stop (Session, Default.all);
+
+   if Stress_Active then
+      declare
+         R : Console.Response;
+      begin
+         Console.Execute ("stress stats", R);
+         Put_Line ("arena: " & Console.Image (R));
+      end;
+   end if;
 
    if Frames > 0 then
       --  The ship's centre is bright hull plating against the dark starfield.
