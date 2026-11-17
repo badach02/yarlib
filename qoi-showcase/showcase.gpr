@@ -1,0 +1,21 @@
+with "yarlib";
+
+project Showcase is
+   for Source_Dirs use ("src");
+   for Object_Dir use "obj";
+   for Exec_Dir use "bin";
+   for Create_Missing_Dirs use "True";
+   for Main use ("arena.adb");
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        ("-gnat2022", "-gnata", "-gnatwa", "-gnatwe",
+         "-gnatVa", "-gnatyg", "-gnatyM100", "-gnaty-d",
+         "-g", "-O2");
+   end Compiler;
+
+   package Binder is
+      for Switches ("Ada") use ("-Es");
+   end Binder;
+end Showcase;
+
