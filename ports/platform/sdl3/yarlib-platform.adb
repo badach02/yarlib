@@ -30,10 +30,6 @@ package body Yarlib.Platform is
    ----------
 
    procedure Open (Width, Height : Positive; Title : String; Ok : out Boolean) is
-      function Create_Window return System.Address is
-        (SDL_CreateWindow
-           (To_C (Title), int (Width), int (Height),
-            Window_OpenGL or Window_Resizable));
    begin
       Ok := False;
       if not SDL_Init (Init_Video) then
@@ -49,20 +45,8 @@ package body Yarlib.Platform is
       then
          Fail ("SDL_GL_SetAttribute");
       end if;
-      Window := Create_Window;
-      if Window = System.Null_Address
-        and then String'(C.Strings.Value (SDL_GetError)) = "Couldn't find matching GLX visual"
-      then
-         --  An RGB framebuffer is sufficient for 2D drawing and blending.
-         if not SDL_GL_SetAttribute (GL_Depth_Size, 0)
-           or else not SDL_GL_SetAttribute (GL_Alpha_Size, 0)
-         then
-            Fail ("SDL_GL_SetAttribute");
-            SDL_Quit;
-            return;
-         end if;
-         Window := Create_Window;
-      end if;
+      Window := SDL_CreateWindow
+        (To_C (Title), int (Width), int (Height), Window_OpenGL or Window_Resizable);
       if Window = System.Null_Address then
          Fail ("SDL_CreateWindow");
          SDL_Quit;
