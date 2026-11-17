@@ -14,6 +14,7 @@ with Ada.Text_IO;      use Ada.Text_IO;
 with Bedrock.Input;    use Bedrock.Input;
 with Yarlib;           use Yarlib;
 with Yarlib.Batch;     use Yarlib.Batch;
+with Yarlib.Collision; use Yarlib.Collision;
 with Yarlib.Console;
 with Yarlib.Core;      use Yarlib.Core;
 with Yarlib.Font;
@@ -38,6 +39,7 @@ procedure Tests is
    procedure Check (Name : String; Cond : Boolean; Needs : Natural := 0);
    procedure Test_Raster;
    procedure Test_Batch;
+   procedure Test_Collision;
    procedure Test_Input;
    procedure Test_Core;
    procedure Test_Camera;
@@ -60,6 +62,40 @@ procedure Tests is
    end Check;
 
    function Same (A, B : Color) return Boolean renames Bedrock.Colors.Same_RGB;
+
+   ---------------------------------------------------------------------
+
+   procedure Test_Collision is
+      A : constant Rectangle := (0.0, 0.0, 10.0, 10.0);
+      B : constant Rectangle := (5.0, 4.0, 10.0, 8.0);
+      Touch : constant Rectangle := (10.0, 2.0, 5.0, 5.0);
+      Empty : constant Rectangle := (5.0, 2.0, 0.0, 5.0);
+      Corner : constant Rectangle := (10.0, 10.0, 2.0, 2.0);
+   begin
+      Check ("rectangles overlap", Check_Collision_Recs (A, B));
+      Check ("rectangle symmetry overlap",
+             Check_Collision_Recs (A, B) = Check_Collision_Recs (A => B, B => A));
+      Check ("rectangle self collision", Check_Collision_Recs (A, A));
+      Check ("edge touching is not collision", not Check_Collision_Recs (A, Touch));
+      Check ("edge touching symmetry", not Check_Collision_Recs (Touch, A));
+      Check ("corner touching is not collision", not Check_Collision_Recs (A, Corner));
+      Check ("zero width disables collision", not Check_Collision_Recs (A, Empty));
+      Check ("zero height disables collision",
+             not Check_Collision_Recs (A, (2.0, 5.0, 5.0, 0.0)));
+      Check ("overlap rectangle", Get_Collision_Rec (A, B) = (5.0, 4.0, 5.0, 6.0));
+      Check ("no overlap rectangle", Get_Collision_Rec (A, Touch) = (0.0, 0.0, 0.0, 0.0));
+      Check ("point on left top included", Check_Collision_Point_Rec ((0.0, 0.0), A));
+      Check ("point on right excluded", not Check_Collision_Point_Rec ((10.0, 5.0), A));
+      Check ("point in empty rectangle", not Check_Collision_Point_Rec ((5.0, 3.0), Empty));
+      Check ("circle tangency", Check_Collision_Circles ((0.0, 0.0), 2.0, (4.0, 0.0), 2.0));
+      Check ("circles separated", not Check_Collision_Circles ((0.0, 0.0), 2.0, (5.0, 0.0), 2.0));
+      Check ("zero radius disables collision",
+             not Check_Collision_Circles ((0.0, 0.0), 0.0, (0.0, 0.0), 2.0));
+      Check ("circle rectangle tangency", Check_Collision_Circle_Rec ((12.0, 5.0), 2.0, A));
+      Check ("circle rectangle corner miss",
+             not Check_Collision_Circle_Rec ((12.0, 12.0), 2.0, A));
+      Check ("circle empty rectangle", not Check_Collision_Circle_Rec ((5.0, 3.0), 2.0, Empty));
+   end Test_Collision;
 
    ---------------------------------------------------------------------
 
@@ -359,6 +395,7 @@ procedure Tests is
       Close_Window;
    end Test_Text;
 begin
+   Test_Collision;
    Test_Raster;
    Test_Batch;
    Test_Input;

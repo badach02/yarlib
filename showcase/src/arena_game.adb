@@ -2,6 +2,7 @@ with Bedrock.Input;    use Bedrock.Input;
 with Yarlib.Core;      use Yarlib.Core;
 with Yarlib.Shapes;    use Yarlib.Shapes;
 with Yarlib.Textures;  use Yarlib.Textures;
+with Yarlib.Collision;
 with Yarlib.Text; use Yarlib.Text;
 package body Arena_Game is
 
@@ -17,6 +18,7 @@ package body Arena_Game is
 
    Prev_Ship : Rectangle; -- to store previous ship location for interp
    Speed  : constant Scalar := 260.0;
+   Wall   : constant Rectangle := (600.0, 135.0, 24.0, 180.0);
    Sprite : Texture;
    Angle  : Degrees := 0.0;
 
@@ -75,14 +77,40 @@ package body Arena_Game is
       if Is_Key_Down (Key_Right) or Is_Key_Down (Key_D) then
          Ship.X := Ship.X + Speed * Dt;
       end if;
+      Ship.X := Scalar'Max (0.0, Scalar'Min (Scalar (W) - Ship.Width, Ship.X));
+
+      --  Resolve each axis separately, using the previous position to stop
+      --  the ship even if a large movement would jump across the wall.
+      if Ship.Y < Wall.Y + Wall.Height and then Ship.Y + Ship.Height > Wall.Y then
+         if Prev_Ship.X + Ship.Width <= Wall.X
+           and then Ship.X + Ship.Width > Wall.X
+         then
+            Ship.X := Wall.X - Ship.Width;
+         elsif Prev_Ship.X >= Wall.X + Wall.Width
+           and then Ship.X < Wall.X + Wall.Width
+         then
+            Ship.X := Wall.X + Wall.Width;
+         end if;
+      end if;
+
       if Is_Key_Down (Key_Up) or Is_Key_Down (Key_W) then
          Ship.Y := Ship.Y - Speed * Dt;
       end if;
       if Is_Key_Down (Key_Down) or Is_Key_Down (Key_S) then
          Ship.Y := Ship.Y + Speed * Dt;
       end if;
-      Ship.X := Scalar'Max (0.0, Scalar'Min (Scalar (W) - Ship.Width, Ship.X));
       Ship.Y := Scalar'Max (0.0, Scalar'Min (Scalar (H) - Ship.Height, Ship.Y));
+      if Ship.X < Wall.X + Wall.Width and then Ship.X + Ship.Width > Wall.X then
+         if Prev_Ship.Y + Ship.Height <= Wall.Y
+           and then Ship.Y + Ship.Height > Wall.Y
+         then
+            Ship.Y := Wall.Y - Ship.Height;
+         elsif Prev_Ship.Y >= Wall.Y + Wall.Height
+           and then Ship.Y < Wall.Y + Wall.Height
+         then
+            Ship.Y := Wall.Y + Wall.Height;
+         end if;
+      end if;
 
       for I in 1 .. N loop
          declare
@@ -117,6 +145,7 @@ package body Arena_Game is
 
       Clear_Background (Dark_Gray);
       Draw_Rectangle_Lines (8, 8, W - 16, H - 16, Light_Gray);
+      Draw_Rectangle_Rec (Wall, Gray);
       for I in 1 .. N loop
          declare
             B : Block renames Blocks (I);
@@ -125,8 +154,14 @@ package body Arena_Game is
             --  blend has traveled. Example 100->102:
             --  An alpha of 0.5 means we are at 101.
             Draw_Pos : constant Vector2 := B.Prev_Pos + (B.Pos - B.Prev_Pos) * Alpha;
+            Draw_Block : constant Rectangle := (Draw_Pos.X, Draw_Pos.Y, B.Size, B.Size);
          begin
-            Draw_Rectangle_Rec ((Draw_Pos.X, Draw_Pos.Y, B.Size, B.Size), B.Tint);
+            Draw_Rectangle_Rec
+              (Draw_Block,
+               (if Collision.Valid_Rectangle (Draw_Block)
+                   and then Collision.Valid_Rectangle (Draw_Ship)
+                   and then Collision.Check_Collision_Recs (Draw_Block, Draw_Ship)
+                then Magenta else B.Tint));
          end;
       end loop;
       Draw_Texture_Pro
