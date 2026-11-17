@@ -25,6 +25,3 @@ development.style_checks = "no"
 development.compile_checks = "warnings"
 validation.style_checks = "yes"
 validation.compile_checks = "errors"
-
-[[depends-on]]
-gnatprove = "^16.1.0"
