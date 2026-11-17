@@ -294,10 +294,14 @@ package body Arena_Game is
                 then Magenta else White));
          end;
       end loop;
-      Draw_Line_Ex
-        ((Draw_Ship.X + Draw_Ship.Width / 2.0, Draw_Ship.Y + Draw_Ship.Height / 2.0),
-         Get_Mouse_Position, 2.0, White);
-      Draw_Sprite (Ship_Sprite, Draw_Ship, Flip_X => Facing_Left);
+      declare
+         Ship_Center : constant Vector2 := Center (Draw_Ship);
+         Radius : constant Scalar := Scalar'Min (Draw_Ship.Width, Draw_Ship.Height) / 2.0;
+      begin
+         Draw_Line_Ex (Ship_Center, Get_Mouse_Position, 2.0, White);
+         Draw_Ring (Ship_Center, Radius - 2.0, Radius, 0.0, 360.0, 0, White);
+         Draw_Sprite (Ship_Sprite, Draw_Ship, Flip_X => Facing_Left);
+      end;
       --  Print fps and block count
       Draw_Text ("FPS:" & Get_FPS'Image, 16, 16, 16, White);
       Draw_Text ("Blocks:" & Block_Count'Image, 16, 36, 16, White);
