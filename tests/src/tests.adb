@@ -47,6 +47,7 @@ procedure Tests is
    procedure Test_Console;
    procedure Test_Atlas;
    procedure Test_Text;
+   procedure Test_Shapes;
 
    procedure Check (Name : String; Cond : Boolean; Needs : Natural := 0) is
    begin
@@ -394,6 +395,115 @@ procedure Tests is
       Check ("A at 16: past the edge clear", Same (Get_Screen_Pixel (12, 5), Black));
       Close_Window;
    end Test_Text;
+   ---------------------------------------------------------------------
+
+   procedure Test_Shapes is
+      function Px (X, Y : Natural) return Color renames Get_Screen_Pixel;
+      procedure Frame_Start;
+      procedure Frame_Start is
+      begin
+         Begin_Drawing;
+         Clear_Background (Black);
+      end Frame_Start;
+   begin
+      Init_Window (16, 16, "shapes");
+
+      --  Filled circle: 12-gon, inradius 6 * cos 15 = 5.80.
+      Frame_Start;
+      Draw_Circle (8, 8, 6.0, Red);
+      End_Drawing;
+      Check ("circle: centre filled", Same (Px (8, 8), Red), Needs => 1);
+      Check ("circle: corner 0,0 clear", Same (Px (0, 0), Black));
+      Check ("circle: inside top edge", Same (Px (8, 2), Red), Needs => 1);
+      Check ("circle: outside top edge", Same (Px (8, 1), Black));
+
+      Frame_Start;
+      Draw_Circle (8, 8, 0.0, Red);
+      Draw_Circle (8, 8, -3.0, Red);
+      End_Drawing;
+      Check ("circle: radius <= 0 draws nothing", Same (Px (8, 8), Black));
+
+      --  Outline: rim pixels lit, centre and interior not.
+      Frame_Start;
+      Draw_Circle_Lines (8, 8, 6.0, Red);
+      End_Drawing;
+      Check ("circle lines: rim", Same (Px (13, 8), Red), Needs => 1);
+      Check ("circle lines: centre clear", Same (Px (8, 8), Black));
+      Check ("circle lines: interior clear", Same (Px (11, 8), Black));
+
+      --  Triangle, both windings.
+      Frame_Start;
+      Draw_Triangle ((0.0, 0.0), (16.0, 0.0), (0.0, 16.0), Red);
+      End_Drawing;
+      Check ("triangle: inside", Same (Px (2, 2), Red), Needs => 1);
+      Check ("triangle: degenerate half not drawn", Same (Px (14, 14), Black));
+      Frame_Start;
+      Draw_Triangle ((0.0, 0.0), (0.0, 16.0), (16.0, 0.0), Red);
+      End_Drawing;
+      Check ("triangle: other winding", Same (Px (2, 2), Red), Needs => 1);
+      Frame_Start;
+      Draw_Triangle ((0.0, 0.0), (8.0, 8.0), (16.0, 16.0), Red);
+      End_Drawing;
+      Check ("triangle: collinear draws nothing", Same (Px (8, 8), Black));
+
+      --  Square rotated 0: a diamond with corners on the axes, |dx|+|dy| <= 6.
+      Frame_Start;
+      Draw_Poly ((8.0, 8.0), 4, 6.0, 0.0, Red);
+      End_Drawing;
+      Check ("poly: centre", Same (Px (8, 8), Red), Needs => 1);
+      Check ("poly: inside edge", Same (Px (10, 10), Red), Needs => 1);
+      Check ("poly: outside edge", Same (Px (12, 12), Black));
+      Frame_Start;
+      Draw_Poly ((8.0, 8.0), 4, 6.0, 45.0, Red);
+      End_Drawing;
+      Check ("poly: rotated 45 is axis-aligned", Same (Px (11, 11), Red), Needs => 1);
+      Frame_Start;
+      Draw_Poly ((8.0, 8.0), 2, 6.0, 0.0, Red);
+      End_Drawing;
+      Check ("poly: fewer than 3 sides draws nothing", Same (Px (8, 8), Black));
+
+      --  Ring 3 .. 6, full turn.
+      Frame_Start;
+      Draw_Ring ((8.0, 8.0), 3.0, 6.0, 0.0, 360.0, 0, Red);
+      End_Drawing;
+      Check ("ring: hole clear", Same (Px (8, 8), Black));
+      Check ("ring: band filled", Same (Px (8, 3), Red), Needs => 1);
+      Check ("ring: outside clear", Same (Px (8, 0), Black));
+
+      --  Half ring 0 .. 180: clockwise from +X with y down is the lower half.
+      Frame_Start;
+      Draw_Ring ((8.0, 8.0), 3.0, 6.0, 0.0, 180.0, 0, Red);
+      End_Drawing;
+      Check ("ring 0..180: lower half drawn", Same (Px (8, 12), Red), Needs => 1);
+      Check ("ring 0..180: upper half clear", Same (Px (8, 3), Black));
+
+      --  Radii given backwards are swapped; equal radii draw nothing.
+      Frame_Start;
+      Draw_Ring ((8.0, 8.0), 6.0, 3.0, 0.0, 360.0, 0, Red);
+      End_Drawing;
+      Check ("ring: swapped radii", Same (Px (8, 3), Red), Needs => 1);
+      Frame_Start;
+      Draw_Ring ((8.0, 8.0), 4.0, 4.0, 0.0, 360.0, 0, Red);
+      Draw_Ring ((8.0, 8.0), 3.0, 6.0, 90.0, 90.0, 0, Red);
+      End_Drawing;
+      Check ("ring: empty band or sweep draws nothing", Same (Px (8, 12), Black));
+
+      --  Lines: a thick line covers its width and stops at its endpoints.
+      Frame_Start;
+      Draw_Line_Ex ((2.0, 8.0), (14.0, 8.0), 3.0, Red);
+      End_Drawing;
+      Check ("line ex: on the line", Same (Px (8, 8), Red), Needs => 1);
+      Check ("line ex: within thickness", Same (Px (8, 7), Red), Needs => 1);
+      Check ("line ex: beyond thickness", Same (Px (8, 11), Black));
+      Check ("line ex: before start", Same (Px (1, 8), Black));
+      Check ("line ex: past end", Same (Px (14, 8), Black));
+      Frame_Start;
+      Draw_Line (3, 3, 3, 3, Red);
+      End_Drawing;
+      Check ("line: zero length draws nothing", Same (Px (3, 3), Black));
+
+      Close_Window;
+   end Test_Shapes;
 begin
    Test_Collision;
    Test_Raster;
@@ -405,6 +515,7 @@ begin
    Test_Console;
    Test_Atlas;
    Test_Text;
+   Test_Shapes;
    New_Line;
    if Todos > 0 then
       Put_Line (Todos'Image & " TODO (waiting on milestones above" & Milestone'Image & ")");

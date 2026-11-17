@@ -166,8 +166,15 @@ package body Arena_Game is
       end loop;
       Draw_Texture_Pro
         (Sprite, (0.0, 0.0, 32.0, 32.0), (100.0, 100.0, 64.0, 64.0), (32.0, 32.0), Angle);
-      Draw_Rectangle_Rec (Draw_Ship, Ship_Color);
-      Draw_Line_Ex ((Draw_Ship.X + 16.0, Draw_Ship.Y + 16.0), Get_Mouse_Position, 2.0, White);
+      --  Ship: a filled circle inside a ring. The ring's outer edge
+      --  touches the 32x32 collision box, which stays a rectangle.
+      declare
+         Ship_Center : constant Vector2 := Center (Draw_Ship);
+      begin
+         Draw_Circle_V (Ship_Center, 11.0, Ship_Color);
+         Draw_Ring (Ship_Center, 13.0, 16.0, 0.0, 360.0, 0, White);
+         Draw_Line_Ex (Ship_Center, Get_Mouse_Position, 2.0, White);
+      end;
       --  Print fps and block count
       Draw_Text ("FPS:" & Get_FPS'Image, 16, 16, 16, White);
       Draw_Text ("Blocks:" & Block_Count'Image, 16, 36, 16, White);
