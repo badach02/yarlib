@@ -1,3 +1,5 @@
+with Ada.Directories;
+with Bedrock.Colors;   use Bedrock.Colors;
 with Bedrock.Input;    use Bedrock.Input;
 with Yarlib.Core;      use Yarlib.Core;
 with Yarlib.Shapes;    use Yarlib.Shapes;
@@ -10,7 +12,6 @@ package body Arena_Game is
    type Block is record
       Pos, Prev_Pos, Vel : Vector2;
       Size     : Scalar;
-      Tint     : Color;
    end record;
 
    Max_Blocks : constant := 256;
@@ -20,15 +21,17 @@ package body Arena_Game is
    Prev_Ship : Rectangle; -- to store previous ship location for interp
    Speed  : constant Scalar := 260.0;
    Wall   : constant Rectangle := (600.0, 135.0, 24.0, 180.0);
-   Sprite : Texture;
-   Angle  : Degrees := 0.0;
+   Backdrop, Ship_Sprite, Asteroid : Texture;
+   Facing_Left : Boolean := False;
 
    function Block_Count return Natural is (N);
 
-   procedure Add_Block (X, Y, Size : Scalar; Tint : Color);
+   procedure Add_Block (X, Y, Size : Scalar);
    procedure Numbers (Args : String; A, B, C : out Scalar; Want : Positive; Ok : out Boolean);
+   procedure Draw_Sprite
+     (Sprite : Texture; Dest : Rectangle; Tint : Color := White; Flip_X : Boolean := False);
 
-   procedure Add_Block (X, Y, Size : Scalar; Tint : Color) is
+   procedure Add_Block (X, Y, Size : Scalar) is
    begin
       if N < Max_Blocks then
          N := N + 1;
@@ -38,7 +41,7 @@ package body Arena_Game is
                      Scalar (30 + 11 * (N mod 5)) * (if N mod 3 = 0 then 1.0 else -1.0)),
             --  Initialize both positions in case drawing happens before the first update.
             Prev_Pos => (X, Y),
-            Size => Size, Tint => Tint);
+            Size => Size);
       end if;
    end Add_Block;
 
@@ -46,16 +49,19 @@ package body Arena_Game is
    --  Init --
    ----------
 
-   procedure Init is
+   procedure Init (Asset_Directory : String := "assets/space") is
+      use Ada.Directories;
    begin
-      Ship := (Scalar (W) / 2.0 - 16.0, Scalar (H) / 2.0 - 16.0, 32.0, 32.0);
+      Ship := (Scalar (W) / 2.0 - 32.0, Scalar (H) / 2.0 - 32.0, 64.0, 64.0);
       --  Set previous location of ship on creation
       Prev_Ship := Ship;
-      Sprite := Checkerboard (32, 32, 8, Orange, Purple);
+      Facing_Left := False;
+      Backdrop := Load_Texture (Compose (Asset_Directory, "space-backdrop.qoi"));
+      Ship_Sprite := Load_Texture (Compose (Asset_Directory, "ship.qoi"));
+      Asteroid := Load_Texture (Compose (Asset_Directory, "asteroid.qoi"));
       N := 0;
       for I in 1 .. 12 loop
-         Add_Block (Scalar (60 * I mod W), Scalar (37 * I mod H), Scalar (12 + I * 2),
-                    (if I mod 3 = 0 then Red elsif I mod 3 = 1 then Green else Yellow));
+         Add_Block (Scalar (60 * I mod W), Scalar (37 * I mod H), Scalar (12 + I * 2));
       end loop;
       Console.Register ("spawn", Cmd_Spawn'Access, "X Y SIZE");
       Console.Register ("clear", Cmd_Clear'Access, "remove all blocks");
@@ -80,6 +86,11 @@ package body Arena_Game is
          end if;
          if Is_Key_Down (Key_Right) or Is_Key_Down (Key_D) then
             Ship.X := Ship.X + Speed * Dt;
+         end if;
+         if Ship.X < Prev_Ship.X then
+            Facing_Left := True;
+         elsif Ship.X > Prev_Ship.X then
+            Facing_Left := False;
          end if;
       end if;
       Ship.X := Scalar'Max (0.0, Scalar'Min (Scalar (W) - Ship.Width, Ship.X));
@@ -134,12 +145,23 @@ package body Arena_Game is
             end if;
          end;
       end loop;
-      Angle := Angle + Degrees (90.0 * Dt);
    end Update;
 
    ----------
    --  Draw --
    ----------
+
+   procedure Draw_Sprite
+     (Sprite : Texture; Dest : Rectangle; Tint : Color := White; Flip_X : Boolean := False)
+   is
+   begin
+      Draw_Texture_Pro
+        (Sprite,
+         Source => ((if Flip_X then Scalar (Sprite.Width) else 0.0), 0.0,
+                    (if Flip_X then -Scalar (Sprite.Width) else Scalar (Sprite.Width)),
+                    Scalar (Sprite.Height)),
+         Dest => Dest, Origin => (0.0, 0.0), Rotation => 0.0, Tint => Tint);
+   end Draw_Sprite;
 
    procedure Draw (Alpha : Scalar) is
       --  Create a new ship to copy its hidth and height for interp.
@@ -150,7 +172,8 @@ package body Arena_Game is
       Draw_Ship.X := Prev_Ship.X + (Ship.X - Prev_Ship.X) * Alpha;
       Draw_Ship.Y := Prev_Ship.Y + (Ship.Y - Prev_Ship.Y) * Alpha;
 
-      Clear_Background (Dark_Gray);
+      Clear_Background (Black);
+      Draw_Sprite (Backdrop, (0.0, 0.0, Scalar (W), Scalar (H)));
       Draw_Rectangle_Lines (8, 8, W - 16, H - 16, Light_Gray);
       Draw_Rectangle_Rec (Wall, Gray);
       for I in 1 .. N loop
@@ -163,18 +186,18 @@ package body Arena_Game is
             Draw_Pos : constant Vector2 := B.Prev_Pos + (B.Pos - B.Prev_Pos) * Alpha;
             Draw_Block : constant Rectangle := (Draw_Pos.X, Draw_Pos.Y, B.Size, B.Size);
          begin
-            Draw_Rectangle_Rec
-              (Draw_Block,
+            Draw_Sprite
+              (Asteroid, Draw_Block,
                (if Collision.Valid_Rectangle (Draw_Block)
                    and then Collision.Valid_Rectangle (Draw_Ship)
                    and then Collision.Check_Collision_Recs (Draw_Block, Draw_Ship)
-                then Magenta else B.Tint));
+                then Magenta else White));
          end;
       end loop;
-      Draw_Texture_Pro
-        (Sprite, (0.0, 0.0, 32.0, 32.0), (100.0, 100.0, 64.0, 64.0), (32.0, 32.0), Angle);
-      Draw_Rectangle_Rec (Draw_Ship, Ship_Color);
-      Draw_Line_Ex ((Draw_Ship.X + 16.0, Draw_Ship.Y + 16.0), Get_Mouse_Position, 2.0, White);
+      Draw_Line_Ex
+        ((Draw_Ship.X + Draw_Ship.Width / 2.0, Draw_Ship.Y + Draw_Ship.Height / 2.0),
+         Get_Mouse_Position, 2.0, White);
+      Draw_Sprite (Ship_Sprite, Draw_Ship, Flip_X => Facing_Left);
       --  Print fps and block count
       Draw_Text ("FPS:" & Get_FPS'Image, 16, 16, 16, White);
       Draw_Text ("Blocks:" & Block_Count'Image, 16, 36, 16, White);
@@ -232,7 +255,7 @@ package body Arena_Game is
       elsif N = Max_Blocks then
          Console.Set (R, False, "err arena full");
       else
-         Add_Block (X, Y, S, White);
+         Add_Block (X, Y, S);
          Console.Set (R, True, "ok block" & N'Image);
       end if;
    end Cmd_Spawn;

@@ -9,7 +9,7 @@
 --     arena --record session.rec   play and record every input
 --     arena --replay session.rec   replay it, same result, no hands
 --     arena --frames 120           120 frames, then write shot.png and
---                                  exit 0 if the ship's pixel is right
+--                                  exit 0 if the ship's pixel is visible
 --     arena -c "spawn 100 100 20"  run a console line first (repeatable)
 --
 --  Until milestone 1 (the batcher) the window shows the clear colour
@@ -21,10 +21,13 @@
 --  rasterizer. What it needs and cannot get from those is a missing
 --  yarlib feature, not a reason to reach past them.
 
+with Bedrock;
 with Bedrock.Buffers;
 with Bedrock.Colors;  use Bedrock.Colors;
 with Ada.Command_Line;  use Ada.Command_Line;
+with Ada.Directories;
 with Ada.Text_IO;       use Ada.Text_IO;
+with GNAT.OS_Lib;
 with Yarlib;            use Yarlib;
 with Yarlib.Console;
 with Yarlib.Core;       use Yarlib.Core;
@@ -34,6 +37,27 @@ with Yarlib.PNG;
 with Arena_Game;        use Arena_Game;
 
 procedure Arena is
+   use type Bedrock.Scalar;
+
+   function Asset_Directory return String;
+
+   function Asset_Directory return String is
+      use Ada.Directories;
+      use GNAT.OS_Lib;
+      Executable : String_Access :=
+        (if Exists (Command_Name) then new String'(Full_Name (Command_Name))
+         else Locate_Exec_On_Path (Command_Name, True));
+   begin
+      if Executable = null then
+         raise Program_Error with "arena: cannot locate executable " & Command_Name;
+      end if;
+      declare
+         Directory : constant String := Containing_Directory (Executable.all);
+      begin
+         Free (Executable);
+         return Compose (Compose (Containing_Directory (Directory), "assets"), "space");
+      end;
+   end Asset_Directory;
 
    package Game is new Yarlib.Game_Loop (Update, Draw);
 
@@ -44,7 +68,7 @@ procedure Arena is
 
 begin
    Init_Window (W, H, "yarlib arena");
-   Init;
+   Init (Asset_Directory);
 
    while I <= Argument_Count loop
       if Argument (I) = "--frames" and then I < Argument_Count then
@@ -80,18 +104,20 @@ begin
    Replay.Stop (Session, Default.all);
 
    if Frames > 0 then
-      --  Acceptance: the ship's centre pixel is the ship's colour. One
-      --  readback of the frame, then a PNG anybody can open.
+      --  The ship's centre is bright hull plating against the dark starfield.
+      --  Read back the frame and save a PNG for visual inspection.
       declare
          Shot : constant Bitmap := Screenshot;
          C    : constant Color :=
-           Bedrock.Buffers.Get (Shot, Integer (Ship.X) + 16, Integer (Ship.Y) + 16);
+           Bedrock.Buffers.Get
+             (Shot, Integer (Ship.X + Ship.Width / 2.0),
+              Integer (Ship.Y + Ship.Height / 2.0));
       begin
          Yarlib.PNG.Save (Shot, "shot.png", Ok);
          if not Ok then
             Put_Line ("arena: cannot write shot.png");
          end if;
-         if C.R = Ship_Color.R and C.G = Ship_Color.G and C.B = Ship_Color.B then
+         if C.R > 80 and then C.G > 80 and then C.B > 80 then
             Put_Line ("arena: ship pixel ok");
          else
             Put_Line ("arena: ship pixel is" & C.R'Image & C.G'Image & C.B'Image

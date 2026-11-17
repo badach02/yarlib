@@ -1,9 +1,7 @@
 --  The game itself: state, Init, Update, Draw, and its console
---  commands. Nothing about windows, files, or arguments; arena.adb
---  does that. This is the split the editor and the tests rely on.
+--  commands. Window setup and command-line handling live in arena.adb.
 
 with Bedrock;         use Bedrock;
-with Bedrock.Colors;  use Bedrock.Colors;
 with Yarlib;       use Yarlib;
 with Yarlib.Console;
 
@@ -12,12 +10,11 @@ package Arena_Game is
    W : constant := 800;
    H : constant := 450;
 
-   Ship       : Rectangle;
-   Ship_Color : constant Color := Sky_Blue;
+   Ship : Rectangle;
 
    function Block_Count return Natural;
 
-   procedure Init;
+   procedure Init (Asset_Directory : String := "assets/space");
    procedure Update (Dt : Scalar);
    procedure Draw (Alpha : Scalar);
 

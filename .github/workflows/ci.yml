@@ -53,7 +53,7 @@ jobs:
           # Exit 1 while the batcher is the placeholder (nothing drawn); flip to 0 at milestone 1.
           xvfb-run -a ./bin/arena --frames 60 --replay right.rec | tee out.txt \
             || echo "arena: nothing drawn yet (milestone 1)"
-          grep -q 'ship at 514 209' out.txt
+          grep -q 'ship at 498 193' out.txt
           test -s shot.png
           cd ../engine/showcase
           alr -n build
