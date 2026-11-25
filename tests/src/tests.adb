@@ -29,6 +29,7 @@ with Test_Support;
 with Yarlib.Shapes;    use Yarlib.Shapes;
 with Yarlib.Textures;  use Yarlib.Textures;
 with Yarlib.Text;
+with Yarlib.Console_View;
 
 procedure Tests is
 
@@ -51,6 +52,7 @@ procedure Tests is
    procedure Test_Atlas;
    procedure Test_Text;
    procedure Test_Shapes;
+   procedure Test_Console_View;
 
    procedure Check (Name : String; Cond : Boolean; Needs : Natural := 0) is
    begin
@@ -612,6 +614,54 @@ procedure Tests is
 
       Close_Window;
    end Test_Shapes;
+   ---------------------------------------------------------------------
+
+   procedure Test_Console_View is
+      History : Console_View.Ring;
+   begin
+      --  Init
+      Init_Window (32, 32, "Console");
+      Console.Register ("list", Test_Support.Echo'Access);
+
+      --  Inject Keys
+      Inject (Key_Event (Key_Grave, Down => True));
+      Inject (Key_Event (Key_L, Down => True));
+      Inject (Key_Event (Key_I, Down => True));
+      Inject (Key_Event (Key_S, Down => True));
+      Inject (Key_Event (Key_T, Down => True));
+      Inject (Key_Event (Key_Return, Down => True));
+
+      --  Run one frame
+      Begin_Drawing;
+      End_Drawing;
+
+      --  Execute command and get history
+      Console_View.Handle_Input;
+      History := Console_View.History;
+
+      --  Check the console opened, ran "list" and printed its answer
+      Check ("console view: grave opens", Console_View.Is_Open);
+      Check ("console view: two lines pushed", Console_View.Count (History) >= 2);
+      --  Only read lines when they exist, so a failure prints FAIL
+      --  instead of crashing on Line's precondition
+      if Console_View.Count (History) >= 2 then
+         declare
+            N        : constant Positive := Console_View.Count (History);
+            Response : constant String   := Console_View.Line (History, N);
+         begin
+            Check ("console view: command echoed",
+                   Console_View.Line (History, N - 1) = "> list");
+            Check ("console view: response starts with ok",
+                   Response'Length >= 2
+                     and then Response (Response'First .. Response'First + 1) = "ok");
+         end;
+      end if;
+      Check ("console view: input cleared", Console_View.Input_Text = "");
+
+      --  Close the console so later tests start with it closed
+      Console_View.Toggle;
+      Close_Window;
+   end Test_Console_View;
 begin
    Test_Collision;
    Test_Collision_Grid;
@@ -622,6 +672,7 @@ begin
    Test_Camera;
    Test_Loop_And_Replay;
    Test_Console;
+   Test_Console_View;
    Test_Atlas;
    Test_Text;
    Test_Shapes;
