@@ -9,6 +9,7 @@ with Yarlib.Textures;  use Yarlib.Textures;
 with Yarlib.Collision.Grid;
 with Yarlib.Text; use Yarlib.Text;
 with Yarlib.Console_View;
+with Yarlib.Animation;
 package body Arena_Game is
 
    type Block is record
@@ -44,6 +45,17 @@ package body Arena_Game is
    Wall   : constant Rectangle := (600.0, 135.0, 24.0, 180.0);
    Backdrop, Ship_Sprite, Asteroid : Texture;
    Facing_Left : Boolean := False;
+
+   --  The boom command's explosion: a 3x2 sheet of 16x16 frames, played
+   --  once in 0.5 s. Boom_Active is what says one is playing; without it
+   --  frame 0 would show at startup, since Time 0.0 is not finished.
+   Explosion_Sheet : Texture;
+   Boom : Animation.Animation :=
+     (Frame_Width => 16, Frame_Height => 16, Columns => 3, Frame_Count => 6,
+      Frames_Per_Second => 12.0, Looping => False, Time => 0.0);
+   Boom_Pos    : Vector2 := (0.0, 0.0);   --  centre of the explosion
+   Boom_Active : Boolean := False;
+   Boom_Size   : constant Scalar := 64.0;   --  drawn at 4x, pixels stay sharp
 
    function Block_Count return Natural is (N);
    function Stress_Active return Boolean is (Stress);
@@ -149,6 +161,10 @@ package body Arena_Game is
       Backdrop := Load_Texture (Compose (Asset_Directory, "space-backdrop.qoi"));
       Ship_Sprite := Load_Texture (Compose (Asset_Directory, "ship.qoi"));
       Asteroid := Load_Texture (Compose (Asset_Directory, "asteroid.qoi"));
+      --  Explosion frames: tiles 4-9 of Pixel Shmup by Kenney
+      --  (www.kenney.nl), CC0, packed into a 3x2 sheet
+      Explosion_Sheet := Load_Texture (Compose (Asset_Directory, "explosion.qoi"));
+      Boom_Active := False;
       N := 0;
       Stress := False;
       for I in 1 .. 12 loop
@@ -159,6 +175,7 @@ package body Arena_Game is
       Console.Register ("ship", Cmd_Ship'Access, "X Y");
       Console.Register ("list", Cmd_List'Access);
       Console.Register ("stress", Cmd_Stress'Access, "2000 | stats; clear to stop");
+      Console.Register ("boom", Cmd_Boom'Access, "X Y");
    end Init;
 
    ------------
@@ -240,6 +257,16 @@ package body Arena_Game is
       if Stress then
          Find_Block_Collisions;
       end if;
+
+      --  The explosion's clock runs here, at the fixed Dt, so --replay
+      --  shows the same frames. Not gated by the console: it plays while
+      --  the console is still open after typing boom.
+      if Boom_Active then
+         Animation.Advance (Boom, Dt);
+         if Animation.Is_Finished (Boom) then
+            Boom_Active := False;
+         end if;
+      end if;
    end Update;
 
    ----------
@@ -302,6 +329,17 @@ package body Arena_Game is
          Draw_Ring (Ship_Center, Radius - 2.0, Radius, 0.0, 360.0, 0, White);
          Draw_Sprite (Ship_Sprite, Draw_Ship, Flip_X => Facing_Left);
       end;
+      --  Over the ship, under the HUD and console. Not Draw_Sprite: that
+      --  always uses the whole texture, and this needs one frame of it.
+      if Boom_Active then
+         Draw_Texture_Pro
+           (Explosion_Sheet,
+            Source   => Animation.Source (Boom),
+            Dest     => (Boom_Pos.X - Boom_Size / 2.0, Boom_Pos.Y - Boom_Size / 2.0,
+                         Boom_Size, Boom_Size),
+            Origin   => (0.0, 0.0),
+            Rotation => 0.0);
+      end if;
       --  Print fps and block count
       Draw_Text ("FPS:" & Get_FPS'Image, 16, 16, 16, White);
       Draw_Text ("Blocks:" & Block_Count'Image, 16, 36, 16, White);
@@ -434,6 +472,22 @@ package body Arena_Game is
          Console.Set (R, True, "ok");
       end if;
    end Cmd_Ship;
+
+   procedure Cmd_Boom (Args : String; R : out Console.Response) is
+      X, Y, Unused : Scalar;
+      Ok : Boolean;
+   begin
+      Numbers (Args, X, Y, Unused, 2, Ok);
+      if not Ok then
+         Console.Set (R, False, "err boom X Y");
+      else
+         --  Restarting the clock replays it even if one is still playing
+         Boom_Pos := (X, Y);
+         Boom.Time := 0.0;
+         Boom_Active := True;
+         Console.Set (R, True, "ok");
+      end if;
+   end Cmd_Boom;
 
    procedure Cmd_List (Args : String; R : out Console.Response) is
       pragma Unreferenced (Args);

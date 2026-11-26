@@ -14,6 +14,7 @@ with Ada.Numerics.Discrete_Random;
 with Ada.Text_IO;      use Ada.Text_IO;
 with Bedrock.Input;    use Bedrock.Input;
 with Yarlib;           use Yarlib;
+with Yarlib.Animation;
 with Yarlib.Batch;     use Yarlib.Batch;
 with Yarlib.Collision; use Yarlib.Collision;
 with Yarlib.Collision.Grid;
@@ -43,6 +44,7 @@ procedure Tests is
    procedure Test_Batch;
    procedure Test_Collision;
    procedure Test_Collision_Grid;
+   procedure Test_Animation;
    procedure Test_Input;
    procedure Test_Core;
    procedure Test_Camera;
@@ -503,6 +505,62 @@ procedure Tests is
       Check ("A at 16: past the edge clear", Same (Get_Screen_Pixel (12, 5), Black));
       Close_Window;
    end Test_Text;
+
+   ---------------------------------------------------------------------
+
+   procedure Test_Animation is
+      --  The plan's sheet: 4x2 frames of 32x32 pixels at 10 fps, so one
+      --  frame lasts 0.1 s and one cycle 0.8 s
+      Sheet : constant Animation.Animation :=
+        (Frame_Width => 32, Frame_Height => 32, Columns => 4, Frame_Count => 8,
+         Frames_Per_Second => 10.0, Looping => True, Time => 0.0);
+      A : Animation.Animation;
+   begin
+      A := Sheet;
+      Animation.Advance (A, 0.35);
+      Check ("animation: 0.35 s is frame 3",
+             Animation.Source (A) = (96.0, 0.0, 32.0, 32.0));
+
+      A := Sheet;
+      Animation.Advance (A, 0.85);
+      Check ("animation: 0.85 s wraps to frame 0",
+             Animation.Source (A) = (0.0, 0.0, 32.0, 32.0));
+      Check ("animation: looping keeps time under one cycle", A.Time < 0.8);
+
+      --  Frame 5 on a 4-column sheet is column 1, row 1
+      A := Sheet;
+      Animation.Advance (A, 0.5);
+      Check ("animation: frame 5 is on the second row",
+             Animation.Source (A) = (32.0, 32.0, 32.0, 32.0));
+
+      --  Not looping: stays on the last frame, 7 (column 3, row 1)
+      A := Sheet;
+      A.Looping := False;
+      Animation.Advance (A, 0.85);
+      Check ("animation: play once clamps to frame 7",
+             Animation.Source (A) = (96.0, 32.0, 32.0, 32.0));
+      Check ("animation: play once is finished after its cycle",
+             Animation.Is_Finished (A));
+
+      A := Sheet;
+      A.Looping := False;
+      Animation.Advance (A, 0.35);
+      Check ("animation: play once is not finished halfway",
+             not Animation.Is_Finished (A));
+
+      A := Sheet;
+      Animation.Advance (A, 0.85);
+      Check ("animation: looping never finishes", not Animation.Is_Finished (A));
+
+      --  The way a game calls it: 21 Updates of 1/60 s is 0.35 s
+      A := Sheet;
+      for I in 1 .. 21 loop
+         Animation.Advance (A, 1.0 / 60.0);
+      end loop;
+      Check ("animation: 21 steps of 1/60 s is frame 3",
+             Animation.Source (A) = (96.0, 0.0, 32.0, 32.0));
+   end Test_Animation;
+
    ---------------------------------------------------------------------
 
    procedure Test_Shapes is
@@ -624,6 +682,7 @@ begin
    Test_Console;
    Test_Atlas;
    Test_Text;
+   Test_Animation;
    Test_Shapes;
    New_Line;
    if Todos > 0 then

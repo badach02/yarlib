@@ -26,9 +26,11 @@ package Arena_Game is
    --    list               blocks and ship
    --    stress 2000        replace the blocks with a grid collision workload
    --    stress stats       report measured frame times
+   --    boom X Y           play an explosion centred on X Y
    procedure Cmd_Spawn (Args : String; R : out Console.Response);
    procedure Cmd_Clear (Args : String; R : out Console.Response);
    procedure Cmd_Ship (Args : String; R : out Console.Response);
    procedure Cmd_List (Args : String; R : out Console.Response);
+   procedure Cmd_Boom (Args : String; R : out Console.Response);
 
 end Arena_Game;
